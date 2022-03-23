@@ -1,0 +1,27 @@
+With firebase AS
+(WITH job_data1 AS (SELECT datetime(job.period_start, "Asia/Kolkata") as period_start, job.period_slot_ms
+  FROM `sharechat-firebase.region-us`.INFORMATION_SCHEMA.JOBS_TIMELINE_BY_PROJECT AS job
+  WHERE date(job.job_creation_time, "Asia/Kolkata") = date'{{ date }}'), 
+ 
+pre as (SELECT timestamp_trunc(job.period_start, SECOND) as time_sec, 
+  ((SUM(job.period_slot_ms))/1000) as slots_sec from job_data1 as job GROUP BY 1 ORDER BY 1 ASC)
+
+SELECT timestamp_trunc(pre.time_sec, MINUTE) as time_min, AVG(pre.slots_sec) as slots_used_per_min,
+'sharechat-firebase' as project from pre GROUP BY 1 ORDER BY 1 ASC),
+
+maximal as
+(WITH job_data1 AS (SELECT datetime(job.period_start, "Asia/Kolkata") as period_start, job.period_slot_ms
+  FROM `maximal-furnace-783.region-us`.INFORMATION_SCHEMA.JOBS_TIMELINE_BY_PROJECT AS job
+  WHERE date(job.job_creation_time, "Asia/Kolkata") = date'{{ date }}'), 
+ 
+pre as (SELECT timestamp_trunc(job.period_start, SECOND) as time_sec, 
+  ((SUM(job.period_slot_ms))/1000) as slots_sec from job_data1 as job GROUP BY 1 ORDER BY 1 ASC)
+
+SELECT timestamp_trunc(pre.time_sec, MINUTE) as time_min, AVG(pre.slots_sec) as slots_used_per_min,
+'maximal-furnace-783' as project from pre GROUP BY 1 ORDER BY 1 ASC)
+
+Select 4500 as base_calacity,f.time_min, m.time_min, f.slots_used_per_min as slots_used_per_min_firebase, m.slots_used_per_min as slots_used_per_min_maximal, (m.slots_used_per_min + f.slots_used_per_min) total_slots_used
+  ,case when f.time_min is null then m.time_min
+  when m.time_min is null then f.time_min else f.time_min end as com_time_min
+from maximal m
+full join firebase f on f.time_min=m.time_min 
